@@ -1,11 +1,11 @@
-# subtitle-cli
+# subchef
 
 CLI for subtitle discovery and download with stable machine-readable output (`--json`) for OpenClaw agents.
 
 ## Install
 
 ```bash
-npm i -g subtitle-cli
+npm i -g subchef
 sub help
 ```
 
@@ -68,6 +68,6 @@ sub download --id <subtitle-id> --output <path|directory> [--provider <id>] [--d
 ## Testing
 
 ```bash
-pnpm --filter subtitle-cli test
-pnpm --filter subtitle-cli check
+pnpm test
+pnpm check
 ```

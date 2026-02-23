@@ -45,7 +45,7 @@ jobs:
       - name: Install tarball globally
         run: |
           set -euo pipefail
-          tarball="$(ls .tmp/pack/subtitle-cli-*.tgz | head -n 1)"
+          tarball="$(ls .tmp/pack/subchef-*.tgz | head -n 1)"
           npm install -g "${tarball}" --no-audit --no-fund
 
       - name: Verify installed CLI

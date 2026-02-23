@@ -1,5 +1,5 @@
 {
-  "name": "subtitle-cli",
+  "name": "subchef",
   "version": "0.1.0",
   "private": false,
   "description": "Subtitle CLI with OpenClaw-friendly JSON contract",

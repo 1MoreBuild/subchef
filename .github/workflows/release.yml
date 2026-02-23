@@ -19,7 +19,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     env:
-      PACKAGE_NAME: subtitle-cli
+      PACKAGE_NAME: subchef
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
