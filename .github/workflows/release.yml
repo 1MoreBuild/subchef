@@ -81,5 +81,9 @@ jobs:
           if npm view "${PACKAGE_NAME}@${RELEASE_VERSION}" version >/dev/null 2>&1; then
             echo "${PACKAGE_NAME}@${RELEASE_VERSION} already published, skip npm publish."
           else
+            # Ensure npm does not use token-based auth so trusted publishing can use OIDC.
+            npm config delete //registry.npmjs.org/:_authToken || true
             npm publish --provenance --access public
           fi
+        env:
+          NODE_AUTH_TOKEN: ""
