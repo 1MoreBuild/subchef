@@ -20,6 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PACKAGE_NAME: subchef
+      TAP_REPOSITORY: 1MoreBuild/homebrew-tap
+      TAP_FORMULA_PATH: Formula/subchef.rb
+      TAP_BRANCH: main
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -87,3 +90,88 @@ jobs:
           fi
         env:
           NODE_AUTH_TOKEN: ""
+
+      - name: Wait for npm registry visibility
+        run: |
+          for attempt in $(seq 1 30); do
+            if npm view "${PACKAGE_NAME}@${RELEASE_VERSION}" version >/dev/null 2>&1; then
+              echo "npm registry is ready."
+              exit 0
+            fi
+            echo "Waiting for npm propagation (${attempt}/30)..."
+            sleep 5
+          done
+          echo "Timed out waiting for npm registry visibility."
+          exit 1
+
+      - name: Resolve npm tarball checksum
+        run: |
+          TARBALL_URL="$(npm view "${PACKAGE_NAME}@${RELEASE_VERSION}" dist.tarball)"
+          curl -fsSL "${TARBALL_URL}" -o package.tgz
+          TARBALL_SHA256="$(shasum -a 256 package.tgz | awk '{print $1}')"
+
+          echo "TARBALL_URL=${TARBALL_URL}" >> "${GITHUB_ENV}"
+          echo "TARBALL_SHA256=${TARBALL_SHA256}" >> "${GITHUB_ENV}"
+
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TAP_REPOSITORY }}
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+          fetch-depth: 0
+
+      - name: Ensure formula exists
+        run: |
+          FORMULA_FILE="./homebrew-tap/${TAP_FORMULA_PATH}"
+          if [ -f "${FORMULA_FILE}" ]; then
+            echo "Formula exists."
+            exit 0
+          fi
+
+          mkdir -p "$(dirname "${FORMULA_FILE}")"
+          cat > "${FORMULA_FILE}" <<'RUBY'
+          class Subchef < Formula
+            desc "Subtitle CLI with OpenClaw-friendly JSON contract"
+            homepage "https://github.com/1MoreBuild/subchef"
+            version "0.0.0"
+            url "https://registry.npmjs.org/subchef/-/subchef-0.0.0.tgz"
+            sha256 "REPLACE_WITH_SHA256"
+            license "MIT"
+
+            depends_on "node"
+
+            def install
+              system "npm", "install", *std_npm_args
+              bin.install_symlink libexec.glob("bin/*")
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/sub --version")
+            end
+          end
+          RUBY
+
+      - name: Update formula
+        run: |
+          node ./scripts/update-homebrew-formula.mjs \
+            --formula "./homebrew-tap/${TAP_FORMULA_PATH}" \
+            --version "${RELEASE_VERSION}" \
+            --url "${TARBALL_URL}" \
+            --sha256 "${TARBALL_SHA256}"
+
+      - name: Commit and push formula update
+        run: |
+          cd homebrew-tap
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet -- "${TAP_FORMULA_PATH}"; then
+            echo "Formula already up to date."
+            exit 0
+          fi
+
+          git add "${TAP_FORMULA_PATH}"
+          git commit -m "${PACKAGE_NAME} ${RELEASE_VERSION}"
+          git push origin "HEAD:${TAP_BRANCH}"
